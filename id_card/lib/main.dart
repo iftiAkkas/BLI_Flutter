@@ -30,7 +30,6 @@ class IDCardShape extends StatelessWidget {
 
     // ✅ unified dark green
     const darkGreen = Color.fromARGB(255, 9, 43, 13); 
-;
 
     return SizedBox(
       width: cardWidth,
