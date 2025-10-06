@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/hacker_news_api.dart';
 import '../../core/models/story_model.dart';
 
@@ -22,17 +23,55 @@ class _StoryDetailsPageState extends State<StoryDetailsPage> {
 
   Future<List<Story>> fetchComments(List<int>? commentIds) async {
     if (commentIds == null || commentIds.isEmpty) return [];
-    final comments = <Story>[];
-    for (final id in commentIds) {
-      comments.add(await api.fetchStory(id));
+    final futures = commentIds.map((id) => api.fetchStory(id));
+    return await Future.wait(futures);
+  }
+
+  Future<void> _launchUrl(String rawUrl, BuildContext context) async {
+    if (rawUrl.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No URL provided')),
+      );
+      return;
     }
-    return comments;
+
+    Uri uri;
+    try {
+      uri = Uri.parse(rawUrl);
+      if (uri.scheme.isEmpty) uri = Uri.parse('https://$rawUrl');
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid URL')),
+      );
+      return;
+    }
+
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open URL')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error launching URL: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Story Details')),
+      backgroundColor: const Color(0xFFF6F7FB),
+      appBar: AppBar(
+        title: const Text('Story Details'),
+        backgroundColor: Colors.deepOrangeAccent,
+        centerTitle: true,
+        elevation: 4,
+        shadowColor: Colors.deepOrange.withOpacity(0.3),
+      ),
       body: FutureBuilder<Story>(
         future: storyFuture,
         builder: (context, snapshot) {
@@ -44,43 +83,108 @@ class _StoryDetailsPageState extends State<StoryDetailsPage> {
           }
 
           final story = snapshot.data!;
-
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Story title
-                Text(
-                  story.title ?? 'No title',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-
-                // Story URL
-                if (story.url != null)
-                  TextButton(
-                    onPressed: () {
-                      // TODO: Open URL using url_launcher
-                    },
-                    child: Text(story.url ?? 'No URL'),
+                // Card container for story
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                const SizedBox(height: 8),
+                  elevation: 3,
+                  shadowColor: Colors.black12,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          story.title ?? 'No title',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
 
-                // Story info
-                Text('by ${story.by ?? 'unknown'}'),
-                Text('Score: ${story.score ?? 0}'),
-                Text('ID: ${story.id ?? 0}'),
+                        if (story.url != null && story.url!.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => _launchUrl(story.url!, context),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.link, size: 18, color: Colors.blueAccent),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    story.url!,
+                                    style: const TextStyle(
+                                      color: Colors.blueAccent,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const Icon(Icons.open_in_new, size: 18, color: Colors.blueAccent),
+                              ],
+                            ),
+                          )
+                        else
+                          const Text('No URL', style: TextStyle(color: Colors.grey)),
 
-                // Comments section
-                const SizedBox(height: 16),
+                        const SizedBox(height: 12),
+                        Divider(color: Colors.grey.shade300),
+                        const SizedBox(height: 8),
+
+                        Row(
+                          children: [
+                            const Icon(Icons.person, size: 18, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Text('by ${story.by ?? 'unknown'}',
+                                style: const TextStyle(color: Colors.black87)),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.thumb_up_alt_rounded,
+                                size: 18, color: Colors.orangeAccent),
+                            const SizedBox(width: 6),
+                            Text('Score: ${story.score ?? 0}',
+                                style: const TextStyle(color: Colors.black87)),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.confirmation_number,
+                                size: 18, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Text('ID: ${story.id}', style: const TextStyle(color: Colors.black87)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
                 Text(
-                  'Comments:',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  'Comments',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepOrangeAccent,
+                  ),
                 ),
                 const SizedBox(height: 8),
+
                 if (story.kids == null || story.kids!.isEmpty)
-                  const Text('No comments')
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text('No comments', style: TextStyle(color: Colors.grey)),
+                  )
                 else
                   FutureBuilder<List<Story>>(
                     future: fetchComments(story.kids),
@@ -91,30 +195,40 @@ class _StoryDetailsPageState extends State<StoryDetailsPage> {
                       if (snapshot.hasError) {
                         return Text('Error loading comments: ${snapshot.error}');
                       }
+
                       final comments = snapshot.data!;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: comments.map((comment) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12.withOpacity(0.05),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.all(12),
+                              title: Text(
+                                comment.text ?? '[deleted]',
+                                style: const TextStyle(fontSize: 14, color: Colors.black87),
                               ),
-                              padding: const EdgeInsets.all(8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'by ${comment.by ?? 'unknown'}',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  'by ${comment.by ?? 'unknown'}',
+                                  style: const TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    fontSize: 13,
+                                    color: Colors.grey,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(comment.text ?? '[deleted]'),
-                                ],
+                                ),
                               ),
                             ),
                           );
