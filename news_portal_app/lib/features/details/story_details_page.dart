@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/hacker_news_api.dart';
 import '../../core/models/story_model.dart';
+import '../../core/db/sembast_db.dart'; // ✅ import your local DB
 
 class StoryDetailsPage extends StatefulWidget {
   final int storyId;
@@ -13,18 +14,44 @@ class StoryDetailsPage extends StatefulWidget {
 
 class _StoryDetailsPageState extends State<StoryDetailsPage> {
   final api = HackerNewsApi();
+  final db = LocalDb();
   late Future<Story> storyFuture;
 
   @override
   void initState() {
     super.initState();
-    storyFuture = api.fetchStory(widget.storyId);
+    storyFuture = _loadStory();
+  }
+
+  Future<Story> _loadStory() async {
+    // ✅ First try to load from DB
+    await db.init();
+    final cached = await db.getStory(widget.storyId);
+
+    try {
+      // Try network
+      final freshStory = await api.fetchStory(widget.storyId);
+      // ✅ Save latest to local cache
+      await db.insertStory(freshStory);
+      return freshStory;
+    } catch (e) {
+      // ✅ Fallback to cached story
+      if (cached != null) {
+        debugPrint('⚠️ Network failed, showing cached data for ${widget.storyId}');
+        return cached;
+      }
+      rethrow; // If no cache, show the actual error
+    }
   }
 
   Future<List<Story>> fetchComments(List<int>? commentIds) async {
     if (commentIds == null || commentIds.isEmpty) return [];
     final futures = commentIds.map((id) => api.fetchStory(id));
-    return await Future.wait(futures);
+    try {
+      return await Future.wait(futures);
+    } catch (_) {
+      return []; // If offline, just show empty comment list
+    }
   }
 
   Future<void> _launchUrl(String rawUrl, BuildContext context) async {
@@ -89,7 +116,7 @@ class _StoryDetailsPageState extends State<StoryDetailsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Card container for story
+                // Story card
                 Card(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -109,7 +136,6 @@ class _StoryDetailsPageState extends State<StoryDetailsPage> {
                           ),
                         ),
                         const SizedBox(height: 10),
-
                         if (story.url != null && story.url!.isNotEmpty)
                           GestureDetector(
                             onTap: () => _launchUrl(story.url!, context),
