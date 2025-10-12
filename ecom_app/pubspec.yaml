@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: ">=3.7.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -14,8 +14,10 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Supabase dependency
-  supabase_flutter: ^1.4.0
-  file_picker: ^5.2.2
+  supabase_flutter: ^1.5.0
+
+  # Uncomment if needed later
+  # file_picker: ^6.1.7
 
 dev_dependencies:
   flutter_test:
@@ -23,9 +25,14 @@ dev_dependencies:
 
   flutter_lints: ^5.0.0
 
+dependency_overrides:
+  # Fix for Android build error caused by Supabase pulling sign_in_with_apple 5.0.0
+  sign_in_with_apple:
+    path: ./.fake_plugins/sign_in_with_apple
+
 flutter:
   uses-material-design: true
 
-  # Add your assets here if needed
-  # assets:
-  #   - assets/images/
+  assets:
+    # Add asset paths here if needed
+    # - assets/images/

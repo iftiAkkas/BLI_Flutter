@@ -1,0 +1,20 @@
+name: chatbot_app
+description: A Flutter chatbot app using Supabase, Sembast, and LM Studio.
+version: 1.0.0+1
+environment:
+  sdk: ">=2.17.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.0.0
+  sembast: ^3.1.0
+  supabase_flutter: ^1.7.0
+  flutter_dotenv: ^5.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+assets:
+    - assets/.env    

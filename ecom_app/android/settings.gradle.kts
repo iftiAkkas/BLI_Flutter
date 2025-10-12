@@ -1,12 +1,11 @@
 pluginManagement {
-    val flutterSdkPath =
-        run {
-            val properties = java.util.Properties()
-            file("local.properties").inputStream().use { properties.load(it) }
-            val flutterSdkPath = properties.getProperty("flutter.sdk")
-            require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
-            flutterSdkPath
-        }
+    val flutterSdkPath = run {
+        val properties = java.util.Properties()
+        file("local.properties").inputStream().use { properties.load(it) }
+        val flutterSdkPath = properties.getProperty("flutter.sdk")
+        require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
+        flutterSdkPath
+    }
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
@@ -24,3 +23,18 @@ plugins {
 }
 
 include(":app")
+
+// ⚠️ Kotlin DSL fix — skip broken sign_in_with_apple plugin
+gradle.beforeProject { project ->
+    if (project.name == "sign_in_with_apple") {
+        println("⚠️ Ignoring sign_in_with_apple plugin (fake placeholder)")
+
+        val fakePluginDir = file("${rootDir}/.fake_plugins/sign_in_with_apple/android")
+        fakePluginDir.mkdirs()
+
+        project.projectDir = fakePluginDir
+        project.buildFileName = "noop.gradle.kts"
+        file("${project.projectDir}/noop.gradle.kts").writeText("// intentionally empty")
+    }
+}
+ 

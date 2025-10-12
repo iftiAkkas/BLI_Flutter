@@ -1,0 +1,12 @@
+name: sign_in_with_apple
+description: Fake stub plugin to bypass Apple sign-in dependency
+version: 0.0.1
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: fake.signin.apple
+        pluginClass: FakeApplePlugin
